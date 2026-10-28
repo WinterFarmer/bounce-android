@@ -67,7 +67,7 @@ The decompiled J2ME codebase—originally split across obfuscated classes (`b.ja
 
 1. Clone this repository:
 
-       git clone https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+       git clone https://github.com/WinterFarmer/bounce-android.git
        cd YOUR_REPO_NAME
 
 2. Build the debug APK using the Gradle Wrapper:
