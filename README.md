@@ -1,6 +1,6 @@
 # 🔴 Bounce Classic — Android Native Port
 
-A faithful **Native Android** port of the legendary Nokia J2ME game **Bounce** (`com.nokia.mid.appl.boun`). This project rewrites and migrates the original J2ME game logic, physics calculations, and binary level parser—based on the decompiled J2ME source code from **[rndtrash/nokia-bounce-decomp](https://github.com/rndtrash/nokia-bounce-decomp)**—to modern Android architecture (`SurfaceView` & `Canvas`) using **pure Java with zero third-party libraries or game engines**.
+A faithful **Native Android** port of the legendary Nokia J2ME game **Bounce** (`com.nokia.mid.appl.boun`). This project rewrites and migrates the original J2ME game logic, physics calculations, and binary level parser based on the decompiled J2ME source code from **[rndtrash/nokia-bounce-decomp](https://github.com/rndtrash/nokia-bounce-decomp)** to modern Android architecture (`SurfaceView` & `Canvas`) using **pure Java with zero third-party libraries or game engines**.
 
 Thanks to R8 optimization (*code shrinking & obfuscation*) and zero external dependencies, the compiled APK is ultra-lightweight — **only ~96 KB!**
 
