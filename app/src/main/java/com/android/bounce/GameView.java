@@ -8,6 +8,7 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -35,11 +36,18 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     public static final int CONTROL_SIMPLE = 0;
     public static final int CONTROL_NUMPAD = 1;
+    public static final int CONTROL_KEYBOARD = 2;
 
     public int gameState = STATE_SPLASH_NOKIA;
     public int controlType = CONTROL_SIMPLE;
     private boolean isFullscreen = false;
     private int settingsReturnState = STATE_MENU;
+
+    private int menuCursorIndex = 1; 
+
+    private boolean keyLeftHeld = false;
+    private boolean keyRightHeld = false;
+    private boolean keyJumpHeld = false;
 
     private int splashTimer = 0;
     private Bitmap splashNokia;
@@ -99,6 +107,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     private final RectF btnSettingSimple = new RectF();
     private final RectF btnSettingNumpad = new RectF();
+    private final RectF btnSettingKeyboard = new RectF();
     private final RectF btnSettingFullscreen = new RectF();
 
     private final Paint uiPaint = new Paint();
@@ -154,7 +163,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     public void loadLevel(int id) {
-        currentLevelId = id;
+        currentLevelId = id; keyLeftHeld = false; keyRightHeld = false; keyJumpHeld = false;
         currentLevel = LevelLoader.loadLevel(getContext(), id);
         if (currentLevel != null) {
             hoopsScored = 0;
@@ -245,7 +254,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                     if (splashTimer >= 38) {
                         splashTimer = 0;
                         if (gameState == STATE_SPLASH_NOKIA) gameState = STATE_SPLASH_BOUNCE;
-                        else gameState = STATE_MENU;
+                        else {
+                            gameState = STATE_MENU;
+                            menuCursorIndex = hasActiveGame ? 0 : 1;
+                        }
                     }
                 } else if (gameState == STATE_PLAYING) {
                     updatePhysics();
@@ -261,11 +273,19 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     private void updatePhysics() {
         if (ball != null) {
+            if (keyLeftHeld || keyRightHeld || keyJumpHeld) {
+                ball.resetAllInputs();
+                if (keyLeftHeld) ball.setInput(1);
+                if (keyRightHeld) ball.setInput(2);
+                if (keyJumpHeld) ball.setInput(8);
+            }
+
             ball.updatePhysics();
             if (ball.state == 1) {
                 if (lives <= 0) {
                     saveGameProgress();
                     hasActiveGame = false;
+                    menuCursorIndex = 0;
                     gameState = STATE_GAME_OVER;
                     return;
                 }
@@ -398,7 +418,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             c.drawText("◀", btnLeft.centerX(), btnLeft.centerY() + 15, uiPaint);
             c.drawText("▶", btnRight.centerX(), btnRight.centerY() + 15, uiPaint);
             c.drawText("▲", btnJump.centerX(), btnJump.centerY() + 15, uiPaint);
-        } else {
+        } else if (controlType == CONTROL_NUMPAD) {
             for (int i = 0; i < 12; i++) {
                 uiPaint.setColor(0x33FFFFFF);
                 c.drawRoundRect(btnNumpad[i], 16, 16, uiPaint);
@@ -408,24 +428,31 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 c.drawText(numpadLabels[i], btnNumpad[i].centerX(), btnNumpad[i].centerY() + 11, uiPaint);
             }
         }
+        // Jika CONTROL_KEYBOARD: Layar dibiarkan bersih tanpa tombol sentuh
     }
 
-    private void drawRetroBevelButton(Canvas c, RectF r, String text, int baseColor) {
-        uiPaint.setColor(baseColor);
+    private void drawRetroBevelButton(Canvas c, RectF r, String text, int baseColor, boolean isSelected) {
+        uiPaint.setColor(isSelected ? 0xFF0D67D4 : baseColor);
         c.drawRect(r, uiPaint);
 
-        borderPaint.setColor(0x88FFFFFF);
+        borderPaint.setColor(isSelected ? 0xFFFFFFFF : 0x88FFFFFF);
+        borderPaint.setStrokeWidth(isSelected ? 5.0f : 3.0f);
         c.drawLine(r.left, r.top, r.right, r.top, borderPaint);
         c.drawLine(r.left, r.top, r.left, r.bottom, borderPaint);
 
-        borderPaint.setColor(0xFF000000);
+        borderPaint.setColor(isSelected ? 0xFF002244 : 0xFF000000);
         c.drawLine(r.left, r.bottom, r.right, r.bottom, borderPaint);
         c.drawLine(r.right, r.top, r.right, r.bottom, borderPaint);
+        borderPaint.setStrokeWidth(3.0f);
 
         uiPaint.setColor(Color.WHITE);
         uiPaint.setTextSize(Math.min(r.height() * 0.48f, 32));
         uiPaint.setTextAlign(Paint.Align.CENTER);
         c.drawText(text, r.centerX(), r.centerY() + r.height() * 0.16f, uiPaint);
+    }
+
+    private void drawRetroBevelButton(Canvas c, RectF r, String text, int baseColor) {
+        drawRetroBevelButton(c, r, text, baseColor, false);
     }
 
     private void drawMainMenu(Canvas c) {
@@ -434,49 +461,52 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         uiPaint.setTextSize(getWidth() > getHeight() ? 52 : 64);
         c.drawText("BOUNCE", getWidth() / 2f, getHeight() * (getWidth() > getHeight() ? 0.18f : 0.16f), uiPaint);
 
-        drawRetroBevelButton(c, btnMenuContinue, "CONTINUE", hasActiveGame ? 0xFF0853AA : 0xFF2A3644);
-        drawRetroBevelButton(c, btnMenuNewGame, "NEW GAME", 0xFF0853AA);
-        drawRetroBevelButton(c, btnMenuLevelSelect, "LEVEL SELECT", 0xFF0853AA);
-        drawRetroBevelButton(c, btnMenuHighScore, "HIGH SCORE", 0xFF0853AA);
-        drawRetroBevelButton(c, btnMenuSettings, "SETTINGS", 0xFF0853AA);
+        drawRetroBevelButton(c, btnMenuContinue, "CONTINUE", hasActiveGame ? 0xFF0853AA : 0xFF2A3644, menuCursorIndex == 0);
+        drawRetroBevelButton(c, btnMenuNewGame, "NEW GAME", 0xFF0853AA, menuCursorIndex == 1);
+        drawRetroBevelButton(c, btnMenuLevelSelect, "LEVEL SELECT", 0xFF0853AA, menuCursorIndex == 2);
+        drawRetroBevelButton(c, btnMenuHighScore, "HIGH SCORE", 0xFF0853AA, menuCursorIndex == 3);
+        drawRetroBevelButton(c, btnMenuSettings, "SETTINGS", 0xFF0853AA, menuCursorIndex == 4);
     }
 
-    // Layout Settings ala Minecraft (Simple, Numpad, Fullscreen Bar, dan Back 2x gap)
     private void drawSettingsScreen(Canvas c) {
         boolean isLandscape = getWidth() > getHeight();
-        float btnW = isLandscape ? Math.min(getWidth() * 0.45f, 450f) : Math.min(getWidth() * 0.85f, 500f);
-        float btnH = isLandscape ? Math.min(getHeight() * 0.10f, 48f) : 62f;
-        float gap = isLandscape ? 10f : 14f;
+        float btnW = isLandscape ? Math.min(getWidth() * 0.44f, 460f) : Math.min(getWidth() * 0.82f, 520f);
+        float btnH = Math.min(getHeight() * 0.105f, isLandscape ? 44f : 56f);
+        float gap = isLandscape ? 8f : 12f;
         float bottomGap = gap * 2.2f;
         float startX = (getWidth() - btnW) / 2f;
 
-        float totalH = 4 * btnH + 2 * gap + bottomGap;
-        float buttonsTop = getHeight() * 0.50f - (totalH / 2f) + (isLandscape ? 20f : 35f);
+        float totalH = 5 * btnH + 3 * gap + bottomGap;
+        float buttonsTop = getHeight() * 0.50f - (totalH / 2f) + (isLandscape ? 12f : 24f);
 
         uiPaint.setColor(Color.WHITE);
         uiPaint.setTextAlign(Paint.Align.CENTER);
-        uiPaint.setTextSize(isLandscape ? 44 : 50);
-        c.drawText("SETTINGS", getWidth() / 2f, buttonsTop - (isLandscape ? 58f : 78f), uiPaint);
+        uiPaint.setTextSize(isLandscape ? 42 : 48);
+        c.drawText("SETTINGS", getWidth() / 2f, buttonsTop - (isLandscape ? 52f : 68f), uiPaint);
 
-        uiPaint.setTextSize(isLandscape ? 24 : 28);
-        c.drawText("SELECT CONTROLLER:", getWidth() / 2f, buttonsTop - (isLandscape ? 20f : 26f), uiPaint);
+        uiPaint.setTextSize(isLandscape ? 22 : 26);
+        c.drawText("SELECT CONTROLLER:", getWidth() / 2f, buttonsTop - (isLandscape ? 16f : 22f), uiPaint);
 
         btnSettingSimple.set(startX, buttonsTop, startX + btnW, buttonsTop + btnH);
         float numpadTop = buttonsTop + btnH + gap;
         btnSettingNumpad.set(startX, numpadTop, startX + btnW, numpadTop + btnH);
-        float fsTop = numpadTop + btnH + gap;
+        float kbTop = numpadTop + btnH + gap;
+        btnSettingKeyboard.set(startX, kbTop, startX + btnW, kbTop + btnH);
+        float fsTop = kbTop + btnH + gap;
         btnSettingFullscreen.set(startX, fsTop, startX + btnW, fsTop + btnH);
         float backTop = fsTop + btnH + bottomGap;
         btnBack.set(startX, backTop, startX + btnW, backTop + btnH);
 
         int simpleColor = (controlType == CONTROL_SIMPLE) ? 0xFF1474E0 : 0xFF2A3644;
         int numpadColor = (controlType == CONTROL_NUMPAD) ? 0xFF1474E0 : 0xFF2A3644;
+        int kbColor = (controlType == CONTROL_KEYBOARD) ? 0xFF1474E0 : 0xFF2A3644;
         int fsColor = isFullscreen ? 0xFF1474E0 : 0xFF2A3644;
 
-        drawRetroBevelButton(c, btnSettingSimple, "SIMPLE (3 BUTTONS)", simpleColor);
-        drawRetroBevelButton(c, btnSettingNumpad, "NUMERIC KEYPAD", numpadColor);
-        drawRetroBevelButton(c, btnSettingFullscreen, isFullscreen ? "FULL SCREEN: ON" : "FULL SCREEN: OFF", fsColor);
-        drawRetroBevelButton(c, btnBack, "BACK", 0xFF445566);
+        drawRetroBevelButton(c, btnSettingSimple, "SIMPLE (3 BUTTONS)", simpleColor, menuCursorIndex == 0);
+        drawRetroBevelButton(c, btnSettingNumpad, "NUMERIC KEYPAD", numpadColor, menuCursorIndex == 1);
+        drawRetroBevelButton(c, btnSettingKeyboard, "PHYSICAL KEYPAD", kbColor, menuCursorIndex == 2);
+        drawRetroBevelButton(c, btnSettingFullscreen, isFullscreen ? "FULL SCREEN: ON" : "FULL SCREEN: OFF", fsColor, menuCursorIndex == 3);
+        drawRetroBevelButton(c, btnBack, "BACK", 0xFF445566, menuCursorIndex == 4);
     }
 
     private void drawDialogOverlay(Canvas c, String title, String btn1Text, String btn2Text, boolean hasSettings) {
@@ -501,21 +531,236 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         c.drawText("Score: " + String.format("%07d", score), getWidth() / 2f, buttonsTop - (isLandscape ? 25f : 32f), uiPaint);
 
         btnDialogPrimary.set(startX, buttonsTop, startX + btnW, buttonsTop + btnH);
-        drawRetroBevelButton(c, btnDialogPrimary, btn1Text, 0xFF0853AA);
+        drawRetroBevelButton(c, btnDialogPrimary, btn1Text, 0xFF0853AA, menuCursorIndex == 0);
 
         if (hasSettings) {
             float settingsTop = buttonsTop + btnH + gap;
             btnDialogSettings.set(startX, settingsTop, startX + btnW, settingsTop + btnH);
-            drawRetroBevelButton(c, btnDialogSettings, "SETTINGS", 0xFF0853AA);
+            drawRetroBevelButton(c, btnDialogSettings, "SETTINGS", 0xFF0853AA, menuCursorIndex == 1);
 
             float secondaryTop = settingsTop + btnH + bottomGap;
             btnDialogSecondary.set(startX, secondaryTop, startX + btnW, secondaryTop + btnH);
-            drawRetroBevelButton(c, btnDialogSecondary, btn2Text, 0xFF662222);
+            drawRetroBevelButton(c, btnDialogSecondary, btn2Text, 0xFF662222, menuCursorIndex == 2);
         } else {
             float secondaryTop = buttonsTop + btnH + bottomGap;
             btnDialogSecondary.set(startX, secondaryTop, startX + btnW, secondaryTop + btnH);
-            drawRetroBevelButton(c, btnDialogSecondary, btn2Text, 0xFF662222);
+            drawRetroBevelButton(c, btnDialogSecondary, btn2Text, 0xFF662222, menuCursorIndex == 1);
         }
+    }
+
+    public boolean handleKeyDown(int keyCode, KeyEvent event) {
+        if (gameState == STATE_SPLASH_NOKIA || gameState == STATE_SPLASH_BOUNCE) {
+            gameState = STATE_MENU;
+            menuCursorIndex = hasActiveGame ? 0 : 1;
+            return true;
+        }
+
+        if (gameState == STATE_PLAYING) {
+            boolean keyChanged = false;
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_4 || keyCode == KeyEvent.KEYCODE_A) {
+                keyLeftHeld = true;
+                keyChanged = true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_6 || keyCode == KeyEvent.KEYCODE_D) {
+                keyRightHeld = true;
+                keyChanged = true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_2 || keyCode == KeyEvent.KEYCODE_5
+                    || keyCode == KeyEvent.KEYCODE_SPACE || keyCode == KeyEvent.KEYCODE_W) {
+                keyJumpHeld = true;
+                keyChanged = true;
+            }
+
+            if (keyChanged) {
+                if (ball != null) {
+                    ball.resetAllInputs();
+                    if (keyLeftHeld) ball.setInput(1);
+                    if (keyRightHeld) ball.setInput(2);
+                    if (keyJumpHeld) ball.setInput(8);
+                }
+                return true;
+            }
+
+            if (keyCode == KeyEvent.KEYCODE_POUND || (keyCode == KeyEvent.KEYCODE_3 && event.isShiftPressed()) || keyCode == KeyEvent.KEYCODE_CTRL_LEFT || keyCode == KeyEvent.KEYCODE_CTRL_RIGHT || keyCode == KeyEvent.KEYCODE_G) { handleKeypadPress("#"); return true; } if (keyCode >= KeyEvent.KEYCODE_0 && keyCode <= KeyEvent.KEYCODE_9 && !event.isShiftPressed()) {
+                handleKeypadPress(String.valueOf(keyCode - KeyEvent.KEYCODE_0));
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_STAR) {
+                handleKeypadPress("*");
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_POUND) {
+                handleKeypadPress("#");
+                return true;
+            }
+
+            if (keyCode == KeyEvent.KEYCODE_ESCAPE || keyCode == KeyEvent.KEYCODE_P || keyCode == KeyEvent.KEYCODE_MENU) {
+                gameState = STATE_PAUSED;
+                menuCursorIndex = 0;
+                keyLeftHeld = keyRightHeld = keyJumpHeld = false;
+                if (ball != null) ball.resetAllInputs();
+                return true;
+            }
+        }
+
+        boolean isUp = (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_W || keyCode == KeyEvent.KEYCODE_2);
+        boolean isDown = (keyCode == KeyEvent.KEYCODE_DPAD_DOWN || keyCode == KeyEvent.KEYCODE_S || keyCode == KeyEvent.KEYCODE_8);
+        boolean isEnter = (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
+                || keyCode == KeyEvent.KEYCODE_SPACE || keyCode == KeyEvent.KEYCODE_5);
+
+        if (gameState == STATE_MENU) {
+            int minIdx = hasActiveGame ? 0 : 1;
+            if (isUp) {
+                menuCursorIndex--;
+                if (menuCursorIndex < minIdx) menuCursorIndex = 4;
+                return true;
+            }
+            if (isDown) {
+                menuCursorIndex++;
+                if (menuCursorIndex > 4) menuCursorIndex = minIdx;
+                return true;
+            }
+            if (isEnter) {
+                if (menuCursorIndex == 0 && hasActiveGame) gameState = STATE_PLAYING;
+                else if (menuCursorIndex == 1) startNewGame(1);
+                else if (menuCursorIndex == 2) { gameState = STATE_LEVEL_SELECT; menuCursorIndex = 0; }
+                else if (menuCursorIndex == 3) gameState = STATE_HIGH_SCORE;
+                else if (menuCursorIndex == 4) { settingsReturnState = STATE_MENU; gameState = STATE_SETTINGS; menuCursorIndex = 0; }
+                return true;
+            }
+        } else if (gameState == STATE_SETTINGS) {
+            if (isUp) {
+                menuCursorIndex = (menuCursorIndex <= 0) ? 4 : menuCursorIndex - 1;
+                return true;
+            }
+            if (isDown) {
+                menuCursorIndex = (menuCursorIndex >= 4) ? 0 : menuCursorIndex + 1;
+                return true;
+            }
+            if (isEnter) {
+                if (menuCursorIndex == 0) { controlType = CONTROL_SIMPLE; saveGameProgress(); updateLayout(getWidth(), getHeight()); }
+                else if (menuCursorIndex == 1) { controlType = CONTROL_NUMPAD; saveGameProgress(); updateLayout(getWidth(), getHeight()); }
+                else if (menuCursorIndex == 2) { controlType = CONTROL_KEYBOARD; saveGameProgress(); updateLayout(getWidth(), getHeight()); }
+                else if (menuCursorIndex == 3) {
+                    isFullscreen = !isFullscreen;
+                    saveGameProgress();
+                    if (getContext() instanceof MainActivity) {
+                        ((MainActivity) getContext()).applyFullscreenMode(isFullscreen);
+                    }
+                } else if (menuCursorIndex == 4) {
+                    gameState = settingsReturnState;
+                    menuCursorIndex = (gameState == STATE_PAUSED) ? 1 : 4;
+                }
+                return true;
+            }
+        } else if (gameState == STATE_PAUSED) {
+            if (isUp) {
+                menuCursorIndex = (menuCursorIndex <= 0) ? 2 : menuCursorIndex - 1;
+                return true;
+            }
+            if (isDown) {
+                menuCursorIndex = (menuCursorIndex >= 2) ? 0 : menuCursorIndex + 1;
+                return true;
+            }
+            if (isEnter) {
+                if (menuCursorIndex == 0) gameState = STATE_PLAYING;
+                else if (menuCursorIndex == 1) { settingsReturnState = STATE_PAUSED; gameState = STATE_SETTINGS; menuCursorIndex = 0; }
+                else if (menuCursorIndex == 2) { gameState = STATE_MENU; menuCursorIndex = hasActiveGame ? 0 : 1; }
+                return true;
+            }
+        } else if (gameState == STATE_LEVEL_COMPLETE || gameState == STATE_GAME_OVER) {
+            if (isUp || isDown) {
+                menuCursorIndex = (menuCursorIndex == 0) ? 1 : 0;
+                return true;
+            }
+            if (isEnter) {
+                if (gameState == STATE_LEVEL_COMPLETE) {
+                    if (menuCursorIndex == 0) {
+                        if (currentLevelId < 11) { loadLevel(currentLevelId + 1); gameState = STATE_PLAYING; }
+                        else { gameState = STATE_MENU; menuCursorIndex = 1; }
+                    } else { gameState = STATE_MENU; menuCursorIndex = 1; }
+                } else {
+                    if (menuCursorIndex == 0) startNewGame(currentLevelId);
+                    else { gameState = STATE_MENU; menuCursorIndex = 1; }
+                }
+                return true;
+            }
+        } else if (gameState == STATE_LEVEL_SELECT) {
+            boolean isLeft = (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_A || keyCode == KeyEvent.KEYCODE_4);
+            boolean isRight = (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_D || keyCode == KeyEvent.KEYCODE_6);
+            int cols = (getWidth() > getHeight()) ? 6 : 4;
+
+            if (isLeft) {
+                if (menuCursorIndex == 11) menuCursorIndex = maxUnlockedLevel - 1;
+                else if (menuCursorIndex > 0) menuCursorIndex--;
+                else menuCursorIndex = 11;
+                return true;
+            }
+            if (isRight) {
+                if (menuCursorIndex == 11) menuCursorIndex = 0;
+                else if (menuCursorIndex < maxUnlockedLevel - 1) menuCursorIndex++;
+                else menuCursorIndex = 11;
+                return true;
+            }
+            if (isUp) {
+                if (menuCursorIndex == 11) menuCursorIndex = maxUnlockedLevel - 1;
+                else if (menuCursorIndex - cols >= 0) menuCursorIndex -= cols;
+                else menuCursorIndex = 11;
+                return true;
+            }
+            if (isDown) {
+                if (menuCursorIndex == 11) menuCursorIndex = 0;
+                else if (menuCursorIndex + cols < maxUnlockedLevel) menuCursorIndex += cols;
+                else menuCursorIndex = 11;
+                return true;
+            }
+            if (isEnter) {
+                if (menuCursorIndex == 11) {
+                    gameState = STATE_MENU;
+                    menuCursorIndex = 2;
+                } else if (menuCursorIndex >= 0 && menuCursorIndex < maxUnlockedLevel) {
+                    startNewGame(menuCursorIndex + 1);
+                }
+                return true;
+            }
+        } else if (gameState == STATE_HIGH_SCORE) {
+            if (isEnter) {
+                gameState = STATE_MENU;
+                menuCursorIndex = 3;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // FIX TOMBOL LENGKET: Lepas tombol fisik langsung mereset input bola
+    public boolean handleKeyUp(int keyCode, KeyEvent event) {
+        if (true) {
+            boolean keyChanged = false;
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_4 || keyCode == KeyEvent.KEYCODE_A) {
+                keyLeftHeld = false;
+                keyChanged = true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_6 || keyCode == KeyEvent.KEYCODE_D) {
+                keyRightHeld = false;
+                keyChanged = true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_2 || keyCode == KeyEvent.KEYCODE_5
+                    || keyCode == KeyEvent.KEYCODE_SPACE || keyCode == KeyEvent.KEYCODE_W) {
+                keyJumpHeld = false;
+                keyChanged = true;
+            }
+            if (keyChanged) {
+                if (ball != null) {
+                    ball.resetAllInputs();
+                    if (keyLeftHeld) ball.setInput(1);
+                    if (keyRightHeld) ball.setInput(2);
+                    if (keyJumpHeld) ball.setInput(8);
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     private void drawLevelSelect(Canvas c) {
@@ -529,9 +774,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         for (int i = 0; i < 11; i++) {
             boolean unlocked = (i + 1) <= maxUnlockedLevel;
-            drawRetroBevelButton(c, btnLevels[i], String.valueOf(i + 1), unlocked ? 0xFF0853AA : 0xFF2A3644);
+            drawRetroBevelButton(c, btnLevels[i], String.valueOf(i + 1), unlocked ? 0xFF0853AA : 0xFF2A3644, menuCursorIndex == i);
         }
-        drawRetroBevelButton(c, btnBack, "BACK", 0xFF445566);
+        drawRetroBevelButton(c, btnBack, "BACK", 0xFF445566, menuCursorIndex == 11);
     }
 
     private void drawHighScoreScreen(Canvas c) {
@@ -553,7 +798,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         uiPaint.setColor(0xFFFFD700);
         c.drawText(String.format("%07d", highScore), getWidth() / 2f, scoreY, uiPaint);
 
-        drawRetroBevelButton(c, btnBack, "BACK", 0xFF445566);
+        drawRetroBevelButton(c, btnBack, "BACK", 0xFF445566, true);
     }
 
     @Override
@@ -565,26 +810,38 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         if (action == MotionEvent.ACTION_DOWN) {
             if (gameState == STATE_SPLASH_NOKIA || gameState == STATE_SPLASH_BOUNCE) {
                 gameState = STATE_MENU;
+                menuCursorIndex = hasActiveGame ? 0 : 1;
                 return true;
             }
             if (gameState == STATE_MENU) {
-                if (hasActiveGame && btnMenuContinue.contains(tx, ty)) gameState = STATE_PLAYING;
-                else if (btnMenuNewGame.contains(tx, ty)) startNewGame(1);
-                else if (btnMenuLevelSelect.contains(tx, ty)) gameState = STATE_LEVEL_SELECT;
-                else if (btnMenuHighScore.contains(tx, ty)) gameState = STATE_HIGH_SCORE;
+                if (hasActiveGame && btnMenuContinue.contains(tx, ty)) { menuCursorIndex = 0; gameState = STATE_PLAYING; }
+                else if (btnMenuNewGame.contains(tx, ty)) { menuCursorIndex = 1; startNewGame(1); }
+                else if (btnMenuLevelSelect.contains(tx, ty)) { menuCursorIndex = 0; gameState = STATE_LEVEL_SELECT; }
+                else if (btnMenuHighScore.contains(tx, ty)) { menuCursorIndex = 3; gameState = STATE_HIGH_SCORE; }
                 else if (btnMenuSettings.contains(tx, ty)) {
+                    menuCursorIndex = 0;
                     settingsReturnState = STATE_MENU;
                     gameState = STATE_SETTINGS;
                 }
                 return true;
             } else if (gameState == STATE_SETTINGS) {
                 if (btnSettingSimple.contains(tx, ty)) {
+                    menuCursorIndex = 0;
                     controlType = CONTROL_SIMPLE;
                     saveGameProgress();
+                    updateLayout(getWidth(), getHeight());
                 } else if (btnSettingNumpad.contains(tx, ty)) {
+                    menuCursorIndex = 1;
                     controlType = CONTROL_NUMPAD;
                     saveGameProgress();
+                    updateLayout(getWidth(), getHeight());
+                } else if (btnSettingKeyboard.contains(tx, ty)) {
+                    menuCursorIndex = 2;
+                    controlType = CONTROL_KEYBOARD;
+                    saveGameProgress();
+                    updateLayout(getWidth(), getHeight());
                 } else if (btnSettingFullscreen.contains(tx, ty)) {
+                    menuCursorIndex = 3;
                     isFullscreen = !isFullscreen;
                     saveGameProgress();
                     if (getContext() instanceof MainActivity) {
@@ -592,43 +849,47 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                     }
                 } else if (btnBack.contains(tx, ty)) {
                     gameState = settingsReturnState;
+                    menuCursorIndex = (gameState == STATE_PAUSED) ? 1 : 4;
                 }
                 return true;
             } else if (gameState == STATE_LEVEL_SELECT) {
                 for (int i = 0; i < 11; i++) {
                     if ((i + 1) <= maxUnlockedLevel && btnLevels[i].contains(tx, ty)) {
+                        menuCursorIndex = i;
                         startNewGame(i + 1);
                         return true;
                     }
                 }
-                if (btnBack.contains(tx, ty)) gameState = STATE_MENU;
+                if (btnBack.contains(tx, ty)) { gameState = STATE_MENU; menuCursorIndex = 2; }
                 return true;
             } else if (gameState == STATE_HIGH_SCORE) {
-                if (btnBack.contains(tx, ty)) gameState = STATE_MENU;
+                if (btnBack.contains(tx, ty)) { gameState = STATE_MENU; menuCursorIndex = 3; }
                 return true;
             } else if (gameState == STATE_PAUSED) {
-                if (btnDialogPrimary.contains(tx, ty)) gameState = STATE_PLAYING;
+                if (btnDialogPrimary.contains(tx, ty)) { menuCursorIndex = 0; gameState = STATE_PLAYING; }
                 else if (btnDialogSettings.contains(tx, ty)) {
+                    menuCursorIndex = 0;
                     settingsReturnState = STATE_PAUSED;
                     gameState = STATE_SETTINGS;
-                } else if (btnDialogSecondary.contains(tx, ty)) gameState = STATE_MENU;
+                } else if (btnDialogSecondary.contains(tx, ty)) { gameState = STATE_MENU; menuCursorIndex = hasActiveGame ? 0 : 1; }
                 return true;
             } else if (gameState == STATE_LEVEL_COMPLETE) {
                 if (btnDialogPrimary.contains(tx, ty)) {
-                    if (currentLevelId < 11) {
-                        loadLevel(currentLevelId + 1);
-                        gameState = STATE_PLAYING;
-                    } else gameState = STATE_MENU;
-                } else if (btnDialogSecondary.contains(tx, ty)) gameState = STATE_MENU;
+                    if (currentLevelId < 11) { loadLevel(currentLevelId + 1); gameState = STATE_PLAYING; }
+                    else { gameState = STATE_MENU; menuCursorIndex = 1; }
+                } else if (btnDialogSecondary.contains(tx, ty)) { gameState = STATE_MENU; menuCursorIndex = 1; }
                 return true;
             } else if (gameState == STATE_GAME_OVER) {
                 if (btnDialogPrimary.contains(tx, ty)) startNewGame(currentLevelId);
-                else if (btnDialogSecondary.contains(tx, ty)) gameState = STATE_MENU;
+                else if (btnDialogSecondary.contains(tx, ty)) { gameState = STATE_MENU; menuCursorIndex = 1; }
                 return true;
             }
         }
 
         if (gameState == STATE_PLAYING && ball != null) {
+            if (controlType == CONTROL_KEYBOARD) {
+                return true;
+            }
             int pointerCount = event.getPointerCount();
             ball.resetAllInputs();
 
@@ -652,6 +913,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 }
             }
 
+            if (keyLeftHeld) ball.setInput(1);
+            if (keyRightHeld) ball.setInput(2);
+            if (keyJumpHeld) ball.setInput(8);
+
             if (controlType == CONTROL_NUMPAD && (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN)) {
                 int actionIdx = event.getActionIndex();
                 for (int i = 0; i < 12; i++) {
@@ -666,18 +931,23 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
 
     public boolean handleBackPressed() {
+        keyLeftHeld = keyRightHeld = keyJumpHeld = false;
         if (gameState == STATE_SPLASH_NOKIA || gameState == STATE_SPLASH_BOUNCE) {
             gameState = STATE_MENU;
+            menuCursorIndex = hasActiveGame ? 0 : 1;
             return true;
         } else if (gameState == STATE_PLAYING) {
             gameState = STATE_PAUSED;
+            menuCursorIndex = 0;
             if (ball != null) ball.resetAllInputs();
             return true;
         } else if (gameState == STATE_SETTINGS) {
             gameState = settingsReturnState;
+            menuCursorIndex = (gameState == STATE_PAUSED) ? 1 : 4;
             return true;
         } else if (gameState == STATE_LEVEL_SELECT || gameState == STATE_HIGH_SCORE || gameState == STATE_PAUSED) {
             gameState = STATE_MENU;
+            menuCursorIndex = hasActiveGame ? 0 : 1;
             return true;
         }
         return false;
@@ -692,6 +962,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     @Override
     public void surfaceChanged(SurfaceHolder h, int format, int width, int height) {
+        updateLayout(width, height);
+    }
+
+    // Canvas Otomatis Berada di Titik Tengah Layar Saat Mode Keyboard Aktif
+    public void updateLayout(int width, int height) {
+        if (width <= 0 || height <= 0) return;
         boolean isLandscape = width > height;
 
         if (isLandscape) {
@@ -761,10 +1037,13 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         } else {
             float scale = (float) width / 128f;
-            scaleMatrix.reset();
-            scaleMatrix.setScale(scale, scale);
-
             float gameScreenHeight = 128f * scale;
+            float canvasTop = (controlType == CONTROL_KEYBOARD) ? (height - gameScreenHeight) / 2f : 0f;
+
+            scaleMatrix.reset();
+            scaleMatrix.postScale(scale, scale);
+            scaleMatrix.postTranslate(0f, canvasTop);
+
             float btnSize = width * 0.22f;
             float btnY = gameScreenHeight + (height - gameScreenHeight - btnSize) / 2f;
 
@@ -820,7 +1099,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     @Override public void addLife() { if (lives < 5) lives++; }
     @Override public void addScore(int points) { score += points; }
     @Override public void hoopScored() { hoopsScored++; if (currentLevel != null && hoopsScored >= currentLevel.hoopsTotal) exitUnlocked = true; }
-    @Override public void triggerGameLevelComplete() { saveGameProgress(); gameState = STATE_LEVEL_COMPLETE; }
+    @Override public void triggerGameLevelComplete() { if (gameState != STATE_PLAYING) return; menuCursorIndex = 0; saveGameProgress(); keyLeftHeld = false; keyRightHeld = false; keyJumpHeld = false; if (ball != null) ball.resetAllInputs(); gameState = STATE_LEVEL_COMPLETE; }
     @Override public int testPointInsideDynThorns(int tileX, int tileY) {
         if (currentLevel != null && currentLevel.dynThornsCount > 0) {
             for (int i = 0; i < currentLevel.dynThornsCount; i++) {

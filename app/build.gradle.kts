@@ -10,8 +10,8 @@ android {
         applicationId = "com.android.bounce"
         minSdk = 21
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 111
+        versionName = "1.1"
     }
 
     buildTypes {

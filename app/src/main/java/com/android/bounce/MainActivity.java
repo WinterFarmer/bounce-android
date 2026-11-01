@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -35,7 +36,6 @@ public class MainActivity extends Activity {
             View decorView = getWindow().getDecorView();
 
             if (isFs) {
-                // Mode Fullscreen ON: Tembus notch/poni kamera total di semua orientasi
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     getWindow().getAttributes().layoutInDisplayCutoutMode =
                             WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
@@ -50,14 +50,12 @@ public class MainActivity extends Activity {
                         | View.SYSTEM_UI_FLAG_FULLSCREEN
                 );
             } else {
-                // Mode Fullscreen OFF: Sembunyikan kamera (black bar tetap ada)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     getWindow().getAttributes().layoutInDisplayCutoutMode =
                             WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;
                 }
 
                 if (isLandscape) {
-                    // Di Landscape: Sembunyikan status bar & navigasi, tapi sisakan black bar kamera
                     getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
                     decorView.setSystemUiVisibility(
                             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
@@ -68,12 +66,27 @@ public class MainActivity extends Activity {
                             | View.SYSTEM_UI_FLAG_FULLSCREEN
                     );
                 } else {
-                    // Di Portrait: Tampilkan status bar dan navigasi normal
                     getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
                     decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
                 }
             }
         });
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (gameView != null && gameView.handleKeyDown(keyCode, event)) {
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (gameView != null && gameView.handleKeyUp(keyCode, event)) {
+            return true;
+        }
+        return super.onKeyUp(keyCode, event);
     }
 
     @Override
