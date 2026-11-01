@@ -3,7 +3,9 @@ package com.android.bounce.core;
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
 import android.media.AudioAttributes;
+import android.media.AudioManager;
 import android.media.SoundPool;
+import android.os.Build;
 
 public class SoundManager implements SoundListener {
     private SoundPool soundPool;
@@ -11,16 +13,22 @@ public class SoundManager implements SoundListener {
     private int soundPickupId = -1;
     private int soundUpId = -1;
 
+    @SuppressWarnings("deprecation")
     public SoundManager(Context context) {
-        AudioAttributes attrs = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_GAME)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            AudioAttributes attrs = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_GAME)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build();
 
-        soundPool = new SoundPool.Builder()
-                .setMaxStreams(5)
-                .setAudioAttributes(attrs)
-                .build();
+            soundPool = new SoundPool.Builder()
+                    .setMaxStreams(5)
+                    .setAudioAttributes(attrs)
+                    .build();
+        } else {
+            // Kompatibilitas untuk Android KitKat 4.4 (API 19)
+            soundPool = new SoundPool(5, AudioManager.STREAM_MUSIC, 0);
+        }
 
         loadSounds(context);
     }

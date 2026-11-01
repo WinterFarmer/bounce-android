@@ -8,7 +8,7 @@ android {
 
     defaultConfig {
         applicationId = "com.android.bounce"
-        minSdk = 21
+        minSdk = 19
         targetSdk = 34
         versionCode = 1111
         versionName = "1.1"
