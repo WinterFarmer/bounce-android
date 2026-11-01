@@ -1,8 +1,8 @@
-# � Bounce Classic — Android Native Port
+# 🔴 Bounce Classic - Android Native Port
 
-A faithful **Native Android** port of the legendary Nokia J2ME game **Bounce** (`com.nokia.mid.appl.boun`). This project migrates the original J2ME game logic, physics calculations, and binary level parser to modern Android architecture (`SurfaceView` & `Canvas`) using **pure Java with zero third-party libraries or game engines**.
+A faithful **Native Android** port of the legendary Nokia J2ME game **Bounce** (`com.nokia.mid.appl.boun`). This project rewrites and migrates the original J2ME game logic, physics calculations, and binary level parser; based on the decompiled J2ME source code from **[rndtrash/nokia-bounce-decomp](https://github.com/rndtrash/nokia-bounce-decomp)**—to modern Android architecture (`SurfaceView` & `Canvas`) using **pure Java with zero third-party libraries or game engines**.
 
-Thanks to R8 optimization (*code shrinking & obfuscation*) and zero external dependencies, the compiled APK is ultra-lightweight — **only ~96 KB!**
+Thanks to R8 optimization (*code shrinking & obfuscation*) and zero external dependencies, the compiled APK is ultra-lightweight — **under 100 KB!**
 
 ---
 
@@ -22,7 +22,7 @@ Thanks to R8 optimization (*code shrinking & obfuscation*) and zero external dep
 
 ---
 
-## �️ Classic Cheat Codes (Numeric Keypad Mode)
+## 🕹️ Classic Cheat Codes (Numeric Keypad Mode)
 
 Switch the controller mode to **NUMERIC KEYPAD** in the **Settings** menu, then type the following key sequences during gameplay:
 
@@ -36,9 +36,9 @@ Switch the controller mode to **NUMERIC KEYPAD** in the **Settings** menu, then 
 
 ---
 
-## � Project Architecture
+## 📂 Project Architecture
 
-The decompiled J2ME codebase—originally split across obfuscated classes (`b.java`, `d.java`, `e.java`, `f.java`)—has been refactored into a clean, modular structure:
+The decompiled J2ME codebase (`b.java`, `d.java`, `e.java`, `f.java`) has been refactored and rewritten for the Android environment into a clean, modular structure:
 
     app/src/main/
      ├── assets/
@@ -63,11 +63,11 @@ The decompiled J2ME codebase—originally split across obfuscated classes (`b.ja
 
 ---
 
-## �️ Building from Source
+## 🛠️ Building from Source
 
 1. Clone this repository:
 
-       git clone https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+       git clone https://github.com/WinterFarmer/bounce-android.git
        cd YOUR_REPO_NAME
 
 2. Build the debug APK using the Gradle Wrapper:
@@ -80,5 +80,12 @@ The decompiled J2ME codebase—originally split across obfuscated classes (`b.ja
 
 ---
 
-## � Disclaimer
+## 🙏 Credits & Acknowledgments
+
+- **[rndtrash/nokia-bounce-decomp](https://github.com/rndtrash/nokia-bounce-decomp):** Huge thanks to [@rndtrash](https://github.com/rndtrash) for decompiling and documenting the original J2ME (`MIDP 1.0 / Nokia UI API`) source code and assets, which served as the primary reference for rewriting this Android native port.
+- **Nokia Corporation:** Original creator and copyright holder of **Bounce**.
+
+---
+
+## 📜 Disclaimer
 This project was created strictly for educational purposes, game preservation, and studying J2ME-to-Android game architecture migration. All original sprites, level designs, and the **Bounce** name are copyrighted properties of **Nokia Corporation**.
