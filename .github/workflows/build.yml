@@ -18,9 +18,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+          cache: 'gradle' # Otomatis menyimpan cache dependensi Gradle
 
       - name: Grant Execute Permission to Gradle
         run: chmod +x gradlew
